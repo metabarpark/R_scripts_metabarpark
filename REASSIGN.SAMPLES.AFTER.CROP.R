@@ -1,4 +1,4 @@
-# This script will join information proceding from  three sources:
+# This script will join information from three sources:
 # - A tabulated file from obitools including sequence counts for individual samples.
 # - A list of MOTU clusters joined by from CROP (with the same ids than the previous file)
 # - A file including fasta sequences for cluster-heads from a cluster.fasta.file and taxonomic info 
