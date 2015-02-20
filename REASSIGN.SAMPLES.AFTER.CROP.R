@@ -12,7 +12,7 @@ clusters <- read.table(fileclust,sep="\t",head=F,stringsAsFactors=F)
 numclust <- nrow(clusters)
 ecotag <- read.table(filetag,sep="\t",head=T,stringsAsFactors=F)
 ecotag <- ecotag[-c(2,5)]
-db.total <- merge(ecotag,db,by="id") #Con esto se queda solo con los heads
+db.total <- merge(ecotag,db,by="id") #This will keep just the heads
 db.total <- data.frame(db.total[-c(ncol(db.total))],cluster_count = 1,db.total$sequence)
 clusters.ord <- data.frame(id=clusters$V1[order(clusters$V1)],included=clusters$V2[order(clusters$V1)])
 rm(clusters)
