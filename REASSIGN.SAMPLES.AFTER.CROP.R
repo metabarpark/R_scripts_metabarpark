@@ -2,8 +2,10 @@
 # - A tabulated file from obitools including sequence counts for individual samples.
 # - A list of MOTU clusters joined by CROP (with the same ids than the previous file)
 # - A file including fasta sequences for cluster-heads from a cluster.fasta.file and taxonomic info 
-#   for this sequences obtained by ecotag (with the same ids than the previous files)
+#   for these sequences obtained by ecotag (with the same ids than the previous files)
 # All this will be joined in a csv output file that may be opened with Calc, Excel or R for further calculations
+# The counts of every sequence in the first file will be added to the cluster-head where the sequence belongs,
+# keeping the total counts and the counts for each sample.
 
 setwd("~/metabarpark_18S")
 filetab <- "MBPARK18S.tab.txt" #Must be a tabulated file (from obitab) including individual sample counts
