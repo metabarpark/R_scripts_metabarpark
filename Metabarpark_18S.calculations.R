@@ -3,8 +3,8 @@
 # Then only MOTUs with ID> 0.80 are retained
 # Then there is a low-frequencies filtering, which deletes counts of samples which are < 3% of the cumulative freq of each MOTU.
 # Then, MOTUs with < 3 total counts are deleted
-# Finally, uncorrectly identified MOTUs with less than 200 counts are also deleted
-# And uncorrectly identified MOTUs with more than 200 counts are saved in another file for further manual checking
+# Finally, incorrectly identified MOTUs with less than 200 counts are also deleted
+# And incorrectly identified MOTUs with more than 200 counts are saved in another file for further manual checking
 
 #load database
 setwd("/media/owen/73E2-0BC8/metabarpark_18S") #Write your own working directory here
