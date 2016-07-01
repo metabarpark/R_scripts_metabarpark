@@ -1,0 +1,46 @@
+#!/usr/bin/env Rscript
+
+# Formats a csv file with fields "id" and "sequence" into a fasta query for BOLD of up to 100 sequences.
+# Author: Owen S. Wangensteen, owenwangensteen@ub.edu
+# Metabarpark Project, metabarpark.blogspot.com
+# ChallenGen Project, challengenproject.blogspot.com
+
+library("optparse")
+
+option_list = list(
+  make_option(c("-i", "--infile"), type="character", default=NULL,
+              help="csv file including 'id' and 'sequence' fields", metavar="character"),
+  make_option(c("-o", "--outfile"), type="character", default=NULL,
+              help="Output file name [default = input file ending in _bold.fasta]", metavar="character"),
+  make_option(c("-s", "--start"), type="integer", default= 1,
+              help="Number of sequence to start", metavar="numeric"),
+  make_option(c("-e", "--end"), type="integer", default= 100,
+              help="Number of sequence to end", metavar="numeric")
+  );
+
+opt_parser = OptionParser(option_list=option_list);
+opt = parse_args(opt_parser);
+
+if (is.null(opt$infile) ){
+  print_help(opt_parser)
+  stop("At least one argument must be supplied (input csv file including 'id' and 'sequence' fields.", call.=FALSE)
+}
+
+if (is.null(opt$outfile)){
+  opt$outfile <- paste(substr(opt$infile,1,nchar(opt$infile)-4),"_",opt$start,"_",opt$end,"_","_bold.fasta",sep="")
+}
+message("Reading ",opt$infile," database")
+db <- read.table(opt$infile,sep=";",head=T)
+if (ncol(db)==1) db <- read.table(opt$infile,sep=",",head=T)
+if (ncol(db)==1) db <- stop("The csv input file must be separated by either ',' or ';'")
+
+message("Database ",opt$infile," read including ",nrow(db), " sequences.")
+message("Selecting sequences from ",opt$start," to ",opt$end,".")
+
+fasta <- file(opt$outfile,"w")
+for (fila in opt$start:opt$end){
+  writeLines(paste(">",db$id[fila],sep=""),fasta)
+  writeLines(as.character(db$sequence[fila]),fasta)
+}
+close(fasta)
+message("Written ",opt$outfile," with ",1+opt$end-opt$start," sequences.")
