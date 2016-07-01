@@ -1,0 +1,79 @@
+#! /usr/bin/Rscript
+
+## Script for recalculating abundances of a MOTU list from CROP from an obitab file (OBITools format)
+## The script will read three arguments from the command line: the input file name (a cluster.list file from CROP),
+## a tabulated file including abundances (from obitab) and the output file name.
+## If the output file name is empty, it will just add ".counts.csv" at the end of the name of the input file.
+## By Owen S. Wangensteen - Project Metabarpark  2016
+
+library("optparse")
+
+option_list = list(
+  make_option(c("-i", "--clustfile"), type="character", default=NULL,
+              help="cluster.list file obtained by CROP", metavar="character"),
+  make_option(c("-o", "--outfile"), type="character", default=NULL,
+              help="Output file name [default = input file ending in counts.csv]", metavar="character"),
+  make_option(c("-t", "--tabfile"), type="character", default=NULL,
+              help="Tabulated file including abundances obtained from obitab", metavar="character")
+);
+
+
+opt_parser = OptionParser(option_list=option_list);
+opt = parse_args(opt_parser);
+
+if (is.null(opt$clustfile) | is.null(opt$tabfile)){
+  print_help(opt_parser)
+  stop("At least two arguments must be supplied (cluster.list file from CROP and tab file from obitab).", call.=FALSE)
+}
+
+if (is.null(opt$outfile)){
+  opt$outfile <- paste(opt$clustfile,"counts.csv",sep="")
+}
+
+
+
+
+
+
+  fileclust <- opt$clustfile
+  filetab <- opt$tabfile
+  outfile <-opt$outfile
+
+  # Read cluster list database
+  message("Reading clusters database...")
+  clusters <- read.table(fileclust,sep="\t",head=F,stringsAsFactors=F)
+  numclust <- nrow(clusters)
+  clusters.ord <- data.frame(id=clusters$V1[order(clusters$V1)],included=clusters$V2[order(clusters$V1)])
+  clusters.ord$id <- as.character(clusters.ord$id)
+  if (grepl(";",clusters.ord$id[1])) {for (i in 1:length(clusters.ord$id)) clusters.ord$id[i] <- substr(clusters.ord$id[i],1,regexpr(";",clusters.ord$id[i])[1]-1)}
+  rm(clusters)
+  message("Cluster database read including ", numclust," clusters.")
+  necesarios <- NULL
+  for (cluster in 1:numclust) necesarios <- c(necesarios,strsplit(as.character(clusters.ord[cluster,2]),","))
+  necesarios <- unlist(necesarios, use.names=F)
+  if (grepl(";",necesarios[1])) {for (i in 1:length(necesarios)) necesarios[i] <- substr(necesarios[i],1,regexpr(";",necesarios[i])[1]-1)}
+
+  # Read counts database and keep only the needed clusters
+  message("Reading tabulated database. This could take a while...")
+  db <- read.table(filetab,sep="\t",head=T)
+  db <- db[db$id %in% necesarios,]
+  numseqs <- nrow(db)
+  samples <- length(names(db)[substr(names(db),1,6)=="sample"])
+  message("Database read including ", numseqs," different sequences and ",samples," samples.")
+
+  db.total <- merge(data.frame(id=clusters.ord$id),db,by="id") #Con esto se queda solo con los heads
+
+  for (fila in 1:numclust){
+    head <- clusters.ord[fila,1]
+    tails <- unlist(strsplit(as.character(clusters.ord[fila,2]),","))
+    tails <- substr(tails,1,14)
+    db.reduced <- db[db$id %in% tails,]
+    suma <- colSums(db.reduced[,substr(names(db.total),1,6)=="sample"])
+    db.total[fila,substr(names(db.total),1,6)=="sample"] <- suma
+    db.total$cluster_weight[fila] <- nrow(db.reduced)
+    message("Cluster ", fila, " / ",numclust, " ready, including ", db.total$cluster_weight[fila]," sequences.","\r",appendLF = FALSE)
+  }
+  db.total$total_reads <- rowSums(db.total[,substr(names(db.total),1,6)=="sample"])
+  names(db.total[substr(names(db.total),1,6)=="sample"]) <- substr(names(db.total[substr(names(db.total),1,6)=="sample"]),8,nchar(names(db.total[substr(names(db.total),1,6)=="sample"])))
+  write.table(db.total[,c(1:(ncol(db.total)-3),(ncol(db.total)-1):ncol(db.total),(ncol(db.total)-2))],outfile,sep=";",quote=F,row.names=F)
+message("File ", outfile, " written")
