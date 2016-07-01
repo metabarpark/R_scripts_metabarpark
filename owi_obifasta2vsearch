@@ -1,0 +1,49 @@
+#! /usr/bin/Rscript
+
+## Script for formatting a obitools fasta file into a vsearch fasta file
+## The script will read the input file name, the output file name, and the name of the attribute containing abundances
+## If the output file argument is empty, it will just add ".vsearch.fasta" at the end of the name of the input file.
+## By Owen S. Wangensteen - Project Metabarpark  2016
+
+library("optparse")
+
+option_list = list(
+  make_option(c("-i", "--infile"), type="character", default=NULL,
+              help="Input obitools fasta file with abundance attribute", metavar="character"),
+  make_option(c("-o", "--outfile"), type="character", default=NULL,
+              help="Output file name [default = input file ending in vsearch.fasta]", metavar="character"),
+  make_option(c("-a", "--attrib"), type="character", default="count",
+              help="Name of the obitools attribute expressing abundances [default = 'count']", metavar="character")
+)
+
+opt_parser = OptionParser(option_list=option_list)
+opt = parse_args(opt_parser)
+
+if (is.null(opt$infile) ){
+  print_help(opt_parser)
+  stop("At least one argument must be supplied (input obitools fasta file with abundances in the 'count' attribute.).", call.=FALSE)
+}
+
+if (is.null(opt$outfile)){
+  opt$outfile <- paste(substr(opt$infile,1,nchar(opt$infile)-6),".vsearch.fasta",sep="")
+}
+
+if (is.null(opt$attrib)){
+  opt$attrib <- "count"
+}
+
+library(Biostrings)
+
+abundance <- function(texto)
+  {
+  comienzo <- as.vector((regexpr(paste(" ",opt$attrib,"=",sep=""),texto)))+nchar(opt$attrib)+2
+  medio <- substr(texto, comienzo,nchar(texto))
+  fin <- as.vector(regexpr(";",medio))
+  salida <- (substring(medio,1,fin-1))
+  return(salida)
+}
+
+db <- readDNAStringSet(opt$infile)
+db@ranges@NAMES <- paste(substr(db@ranges@NAMES,1,15),";size=",abundance(db@ranges@NAMES),";" ,sep="")
+writeXStringSet(db,opt$outfile)
+message("File ",opt$outfile," written")
