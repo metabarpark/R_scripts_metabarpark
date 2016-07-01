@@ -1,0 +1,71 @@
+#! /usr/bin/Rscript
+
+## Script for clustering abundances of an obitab file (OBITools format) annotated with sumaclust
+## The script will read three arguments from the command line: the input file name, the output file name and a selection file.
+## If the output file name is empty, it will just add ".counts.csv" at the end of the name of the input file.
+## The selection file must be a text file with the ids of the clusters to include in the output, one per line.
+## By Owen S. Wangensteen - Project Metabarpark  2015
+
+library("optparse")
+
+option_list = list(
+  make_option(c("-i", "--infile"), type="character", default=NULL,
+              help="obitab file clustered by sumaclust", metavar="character"),
+  make_option(c("-o", "--outfile"), type="character", default=NULL,
+              help="Output file name [default = input file ending in counts.csv]", metavar="character"),
+  make_option(c("-s", "--select"), type="character", default=NULL,
+              help="Name of the text file with the ids of the clusters to include [default = all]", metavar="character")
+);
+
+opt_parser = OptionParser(option_list=option_list);
+opt = parse_args(opt_parser);
+
+if (is.null(opt$infile) ){
+  print_help(opt_parser)
+  stop("At least one argument must be supplied (input obitab file annotated with sumaclust.", call.=FALSE)
+}
+
+if (is.null(opt$outfile)){
+  opt$outfile <- paste(substr(opt$infile,1,nchar(opt$infile)-3),"counts.csv",sep="")
+}
+
+  #num_char_id <- 14
+
+  # Read cluster list database
+  message("Reading obitab database...")
+  reads_db <- read.table(opt$infile,sep="\t",head=T)
+  total_seqs <- nrow(reads_db)
+  message("Cluster database read including ", total_seqs," total sequences.")
+
+  # If is there a select file, then select only the desired clusters 
+  if (!(is.null(opt$select))) {
+    select_db <- read.table(opt$select,head=F)
+    reads_db <- reads_db[reads_db$cluster %in% select_db$V1,]
+    message("Selected only ", nrow(reads_db),"  sequences from ",nrow(select_db)," clusters in file ",opt$select,".")
+  }
+
+  showlines <- 100
+
+  centers_db <- reads_db[reads_db$cluster_center=="True",]
+  singletons <- centers_db[centers_db$cluster_weight==1,]
+  centers_nosingletons <- centers_db[centers_db$cluster_weight>1,]
+  non_singletons <- nrow(centers_nosingletons)
+
+  # Calculate reads in each cluster 
+  message("Database includes ", nrow(centers_db)," different clusters.")
+  message("With ", non_singletons," non-singleton clusters.")
+  message("Calculating number of reads in non-singleton clusters")
+
+  sample_columns <- substr(names(centers_db),1,7)=="sample."
+
+  for (i in 1:non_singletons){
+    counts_table <- reads_db[reads_db$cluster==as.character(centers_nosingletons$id[i]),sample_columns]
+    centers_nosingletons[i,sample_columns] <- colSums(counts_table)
+    if (i %% showlines == 0) message(i,"/",non_singletons," clusters calculated.","\r",appendLF = FALSE)
+  }
+  db_clusters <- rbind(centers_nosingletons,singletons)
+  names(db_clusters[,sample_columns]) <- substr(names(db_clusters[,sample_columns]),8,nchar(names(db_clusters[,sample_columns])))
+  write.table(data.frame(id=db_clusters$id,total_reads=db_clusters$cluster_weight,db_clusters[sample_columns],sequence=db_clusters$sequence),opt$outfile,sep=",",quote=F,row.names=F)
+  message("File ", opt$outfile, " written, including ",sum(db_clusters$cluster_weight)," reads in ",nrow(db_clusters)," clusters.")
+  message("(",nrow(db_clusters[db_clusters$cluster_weight>1,])," non-singletons clusters).")
+
