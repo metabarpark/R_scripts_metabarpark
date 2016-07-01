@@ -1,0 +1,57 @@
+#! /usr/bin/Rscript
+
+## Script for combining an abundance file with an ecotag annotated file 
+## The script will read three arguments from the command line: two input file names and the output file name.
+## The abundances file must include sample columns names beginning with "sample."
+## If the output file name is empty, it will just add ".merged.csv" at the end of the name of the annotated input file.
+## By Owen S. Wangensteen - Project Metabarpark  2016
+
+library("optparse")
+
+option_list = list(
+  make_option(c("-i", "--infile"), type="character", default=NULL,
+              help="obitab file clustered by sumaclust", metavar="character"),
+  make_option(c("-o", "--outfile"), type="character", default=NULL,
+              help="Output file name [default = input file ending in merged.csv]", metavar="character"),
+  make_option(c("-a", "--abundances"), type="character", default=NULL,
+              help="Name of the text file with the abundances of the clusters", metavar="character")
+);
+
+opt_parser = OptionParser(option_list=option_list);
+opt = parse_args(opt_parser);
+
+if ((is.null(opt$infile)) | (is.null(opt$abundances))){
+  print_help(opt_parser)
+  stop("At least two files must be supplied (input csv file annotated with ecotag and abundances file.", call.=FALSE)
+}
+
+if (is.null(opt$outfile)){
+  opt$outfile <- paste(substr(opt$infile,1,nchar(opt$infile)-3),"merged.csv",sep="")
+}
+
+  #num_char_id <- 14
+
+  # Read cluster list database
+  message("Reading ecotag database...")
+  ecotag_db <- read.table(opt$infile,sep=";",head=T)
+  if (ncol(ecotag_db)==1) ecotag_db <- read.table(opt$infile,sep=",",head=T)
+  message("Ecotag database read including ", nrow(ecotag_db)," total MOTUs.")
+
+  message("Reading abundance database...")
+  abun_db <- read.table(opt$abundances,sep=",",head=T)
+  if (ncol(abun_db)==1) ecotag_db <- read.table(opt$abundances,sep=";",head=T)
+  n_samples <- ncol(abun_db[,substr(names(abun_db),1,7)=="sample."])
+  message("Abundances database read including ", nrow(abun_db)," total MOTUs and ",n_samples," samples.")
+
+  # Merge databases
+  db <- merge(ecotag_db,abun_db,by="id")
+  db <- db[names(db)!="sequence.x"]
+  names(db)[names(db)=="sequence.y"] <- "sequence"
+  names(db)[substr(names(db),1,7)=="sample."] <- substr(names(db)[substr(names(db),1,7)=="sample."],8,nchar(names(db)[substr(names(db),1,7)=="sample."]))
+
+ # Substitute the commas by "|" in the species_list
+  db$species_list <- gsub(",","|",db$species_list)
+
+  write.table(db,opt$outfile,sep=",",quote=F,row.names=F)
+  message("File ", opt$outfile, " written, including ",nrow(db)," MOTUs with ",sum(db$total_reads)," total reads in ",n_samples," samples.")
+  message("(",nrow(db[db$total_reads>1,])," non-singletons MOTUs).")
