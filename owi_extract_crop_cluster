@@ -1,0 +1,42 @@
+args<-commandArgs(T)
+
+suppressPackageStartupMessages(library("Biostrings"))
+
+#setwd("~/datos/metabarpark_COI_HUF3")
+#cluster_id="MBPK_003210675"  
+#fileclust <- "MBPK_COIHUF3_LEN313.fasta.cluster.list"
+#fasta_original <- "MBPK_COIHUF3_LEN313.fasta"
+
+if (length(args)<3) {message("Please enter the id of the cluster you want to analyze, the name of a CROP cluster.list file and the name of the original Fasta file before CROP.")} else
+
+  {
+  cluster_id <- args[1] #Must be valid id 
+  fileclust <-args[2]
+  fasta_original <- args[3]
+  outfile  <- paste(cluster_id,"_outfile.txt",sep="")
+  outfasta <- paste(cluster_id,"_outfile.fasta",sep="")
+
+  # Read cluster list database
+  message("Reading clusters database...")
+  clusters <- read.table(fileclust,sep="\t",head=F,stringsAsFactors=F)
+  clusterlist <- clusters$V2[clusters$V1==cluster_id]
+  included <- unlist(strsplit(clusterlist,","))
+  numseqs <- length(included)
+  rm(clusters)
+  rm(clusterlist)
+  message("Cluster ",cluster_id," found to include ", numseqs," sequences.")
+
+  #Read fasta database
+  message("Now reading original fasta file (this could take a while).")
+  db <- readDNAStringSet(fasta_original)
+  nombres <- substr(names(db),1,14)
+
+  #Select seqs in cluster
+  db.included <- db[nombres %in% included]
+  #db.included@ranges@NAMES <- nombres[nombres %in% included]
+  rm(db)
+
+  #Write output fasta
+  message("Now writing ",numseqs," sequences in fasta file ",outfasta)
+  writeXStringSet(db.included,outfasta)
+}
