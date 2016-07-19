@@ -39,7 +39,7 @@ if (is.null(opt$outfile)){
 
   message("Reading abundance database...")
   abun_db <- read.table(opt$abundances,sep=",",head=T)
-  if (ncol(abun_db)==1) ecotag_db <- read.table(opt$abundances,sep=";",head=T)
+  if (ncol(abun_db)==1) abun_db <- read.table(opt$abundances,sep=";",head=T)
   n_samples <- ncol(abun_db[,substr(names(abun_db),1,7)=="sample."])
   message("Abundances database read including ", nrow(abun_db)," total MOTUs and ",n_samples," samples.")
 
