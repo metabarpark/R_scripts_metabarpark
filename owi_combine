@@ -10,7 +10,7 @@ library("optparse")
 
 option_list = list(
   make_option(c("-i", "--infile"), type="character", default=NULL,
-              help="obitab file clustered by sumaclust", metavar="character"),
+              help="csv file with ecotag annotation", metavar="character"),
   make_option(c("-o", "--outfile"), type="character", default=NULL,
               help="Output file name [default = input file ending in merged.csv]", metavar="character"),
   make_option(c("-a", "--abundances"), type="character", default=NULL,
