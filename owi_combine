@@ -50,7 +50,7 @@ if (is.null(opt$outfile)){
   names(db)[substr(names(db),1,7)=="sample."] <- substr(names(db)[substr(names(db),1,7)=="sample."],8,nchar(names(db)[substr(names(db),1,7)=="sample."]))
 
  # Substitute the commas by "|" in the species_list
-  db$species_list <- gsub(",","|",db$species_list)
+  if (!is.null(db$species_list)) db$species_list <- gsub(",","|",db$species_list)
 
   write.table(db,opt$outfile,sep=",",quote=F,row.names=F)
   message("File ", opt$outfile, " written, including ",nrow(db)," MOTUs with ",sum(db$total_reads)," total reads in ",n_samples," samples.")
