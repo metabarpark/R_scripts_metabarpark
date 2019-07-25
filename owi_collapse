@@ -1,0 +1,84 @@
+#!/usr/bin/env Rscript
+
+# Collapses species with the same name over an identity threshold
+# The input is a csv file with field names "best_identity", "species", "sequence", "total_reads".
+# Sample columns are located between start_samples and end_samples (numeric).
+# The output will have the most abundant sequence as the representative and the higher best_id as the best_id
+# Author: Owen S. Wangensteen, owenwangensteen@ub.edu
+# Metabarpark Project, metabarpark.blogspot.com
+# ChallenGen Project, challengenproject.blogspot.com
+
+library("optparse")
+
+option_list = list(
+  make_option(c("-i", "--infile"), type="character", default=NULL, 
+              help="csv file including 'id' and 'sequence' fields", metavar="character"),
+  make_option(c("-o", "--outfile"), type="character", default=NULL, 
+              help="Output file name [default = input file ending in _collapsed.csv]", metavar="character"),
+  make_option(c("-t", "--threshold"), type="numeric", default= 0.70, 
+              help="Threshold for collapsing. Default = 0.70", metavar="numeric"),
+  make_option(c("-s", "--start_samples"), type="integer", default= 14, 
+              help="Sample columns start. Default = 14", metavar="numeric"),
+  make_option(c("-e", "--end_samples"), type="integer", default= 98, 
+              help="Sample columns end. Default = 98", metavar="numeric")
+  ); 
+
+opt_parser = OptionParser(option_list=option_list);
+opt = parse_args(opt_parser);
+
+if (is.null(opt$infile) ){
+  print_help(opt_parser)
+  stop("At least one argument must be supplied (input csv file including 'best_identity', 'species', 'sequence' & 'total_reads' fields.", call.=FALSE)
+}
+
+# If no outfile name, then create a suitable one
+if (is.null(opt$outfile)){
+  opt$outfile <- paste(substr(opt$infile,1,nchar(opt$infile)-4),"_collapsed.csv",sep="")
+}
+
+# Read the csv file. Check that it has more than 1 column.
+message("Reading ",opt$infile," database")
+db <- na.exclude(read.table(opt$infile,sep=";",head=T))
+if (ncol(db)==1) db <- na.exclude(read.table(opt$infile,sep=",",head=T))
+if (ncol(db)==1) stop("Unable to read csv file. Use a file with ',' or ';' separators",call.=FALSE)
+message("Database ",opt$infile," read including ",nrow(db), " sequences.")
+
+# Check the number of species
+unique_species <- length(unique(db$species))
+db_species <- na.exclude(db[db$species!="",])
+rows_with_species_name <- nrow(db_species)
+message("Database ",opt$infile," includes ",rows_with_species_name, " sequences with species name,")
+message("Belonging to ",unique_species," unique species.")
+message("Now collapsing species with best_identity higher than ",opt$threshold,".")
+
+# Select which sequences need to be collapsed
+db_all_collapsed <- tapply(db_species$total_reads/db_species$total_reads,db_species$species,sum,na.rm=T)
+db_to_collapse <- db[(db$species %in% names(db_all_collapsed[db_all_collapsed>1])) & (db$best_identity>opt$threshold),]
+db_unmodified <-  db[!((db$species %in% names(db_all_collapsed[db_all_collapsed>1])) & (db$best_identity>opt$threshold)),]
+species_to_collapse <- unique(as.character(db_to_collapse$species))
+
+# Do the collapse calculations
+species_collapsed <- NULL
+for (name in species_to_collapse) {
+  species_db <- db_to_collapse[db_to_collapse$species==name,]
+  reads_collapsed <- colSums(species_db[,opt$start_samples:opt$end_samples])
+  # Order dataframe by total_reads and best_id
+  species_db <- species_db[with(species_db,order(total_reads,best_identity,decreasing=T)),]
+  # Get the first row
+  vector <- species_db[1,]
+  # Change sample columns with the sum
+  vector[1,opt$start_samples:opt$end_samples] <- reads_collapsed
+  # Change total_reads
+  vector$total_reads[1] <- sum(reads_collapsed)
+  # Change best_id
+  vector$best_identity[1] <- max(species_db$best_identity)
+  species_collapsed <- rbind(species_collapsed,vector)
+  }
+message(nrow(db_to_collapse)," sequences collapsed to ",length(species_to_collapse)," species.")
+
+# Recover the database
+db_final <- rbind(species_collapsed,db_unmodified)
+db_final <- db_final[order(db_final$superkingdom,db_final$kingdom,db_final$phylum,db_final$class,db_final$order,
+                           db_final$family,db_final$genus,db_final$species,db_final$scientific_name,db_final$total_reads),]
+write.table(db_final,file=opt$outfile,append = F,row.names=F,sep=",")
+message("Written ",opt$outfile," with ",nrow(db_final)," MOTUs.")
